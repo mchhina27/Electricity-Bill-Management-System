@@ -1,297 +1,262 @@
+"""
+Customer Management page (embedded in the admin shell content area).
+
+All data access is unchanged from the original project -- this file only
+changes how the screen looks and is composed. It still calls:
+    get_all_customers, add_customer, update_customer, delete_customer
+from services/customer_service.py with the exact same arguments/order.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import date
+
+from ui import theme
+from ui.theme import COLORS
+from ui import components
+from ui.components import Card, PageHeader, InlineBanner, SearchBar, EmptyState
 
 from services.customer_service import (
     get_all_customers,
     add_customer,
     update_customer,
-    delete_customer
+    delete_customer,
 )
 
 
-class CustomerManagement:
+CONNECTION_TYPES = ["DOMESTIC", "COMMERCIAL", "INDUSTRIAL"]
 
-    def __init__(self):
+TABLE_COLUMNS = (
+    "customer_id",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "city",
+    "state",
+    "connection_type",
+)
 
-        self.window = tk.Toplevel()
+TABLE_HEADINGS = {
+    "customer_id": "ID",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "email": "Email",
+    "phone": "Phone",
+    "city": "City",
+    "state": "State",
+    "connection_type": "Connection Type",
+}
 
-        self.window.title("Customer Management")
-        self.window.geometry("1200x850")
+
+class CustomerManagementPage(tk.Frame):
+
+    def __init__(self, parent):
+        super().__init__(parent, bg=COLORS["bg"])
 
         self.selected_customer_id = None
+        self.all_customers = []
 
-        # =========================================
-        # TITLE
-        # =========================================
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
 
-        tk.Label(
-            self.window,
-            text="CUSTOMER MANAGEMENT",
-            font=("Arial", 20, "bold")
-        ).pack(pady=15)
+        container = tk.Frame(self, bg=COLORS["bg"])
+        container.grid(row=0, column=0, sticky="nsew", padx=28, pady=22)
+        container.grid_columnconfigure(0, weight=1)
+        container.grid_rowconfigure(2, weight=1)
 
-        # =========================================
-        # FORM
-        # =========================================
+        PageHeader(
+            container,
+            "Customer Management",
+            "Add, update and search registered customer accounts."
+        ).grid(row=0, column=0, sticky="ew", pady=(0, 14))
 
-        form_frame = tk.Frame(self.window)
-        form_frame.pack(pady=10)
+        self.banner = InlineBanner(container)
+        self.banner.place_in_grid(row=1, column=0)
 
-        # First Name
-        tk.Label(form_frame, text="First Name").grid(
-            row=0, column=0, padx=10, pady=7, sticky="w"
-        )
+        body = tk.Frame(container, bg=COLORS["bg"])
+        body.grid(row=2, column=0, sticky="nsew")
+        body.grid_columnconfigure(1, weight=1)
+        body.grid_rowconfigure(0, weight=1)
 
-        self.first_name_entry = tk.Entry(form_frame, width=25)
-        self.first_name_entry.grid(
-            row=0, column=1, padx=10, pady=7
-        )
-
-        # Last Name
-        tk.Label(form_frame, text="Last Name").grid(
-            row=0, column=2, padx=10, pady=7, sticky="w"
-        )
-
-        self.last_name_entry = tk.Entry(form_frame, width=25)
-        self.last_name_entry.grid(
-            row=0, column=3, padx=10, pady=7
-        )
-
-        # Email
-        tk.Label(form_frame, text="Email").grid(
-            row=1, column=0, padx=10, pady=7, sticky="w"
-        )
-
-        self.email_entry = tk.Entry(form_frame, width=25)
-        self.email_entry.grid(
-            row=1, column=1, padx=10, pady=7
-        )
-
-        # Phone
-        tk.Label(form_frame, text="Phone").grid(
-            row=1, column=2, padx=10, pady=7, sticky="w"
-        )
-
-        self.phone_entry = tk.Entry(form_frame, width=25)
-        self.phone_entry.grid(
-            row=1, column=3, padx=10, pady=7
-        )
-
-        # Address
-        tk.Label(form_frame, text="Address").grid(
-            row=2, column=0, padx=10, pady=7, sticky="w"
-        )
-
-        self.address_entry = tk.Entry(form_frame, width=25)
-        self.address_entry.grid(
-            row=2, column=1, padx=10, pady=7
-        )
-
-        # City
-        tk.Label(form_frame, text="City").grid(
-            row=2, column=2, padx=10, pady=7, sticky="w"
-        )
-
-        self.city_entry = tk.Entry(form_frame, width=25)
-        self.city_entry.grid(
-            row=2, column=3, padx=10, pady=7
-        )
-
-        # State
-        tk.Label(form_frame, text="State").grid(
-            row=3, column=0, padx=10, pady=7, sticky="w"
-        )
-
-        self.state_entry = tk.Entry(form_frame, width=25)
-        self.state_entry.grid(
-            row=3, column=1, padx=10, pady=7
-        )
-
-        # Pincode
-        tk.Label(form_frame, text="Pincode").grid(
-            row=3, column=2, padx=10, pady=7, sticky="w"
-        )
-
-        self.pincode_entry = tk.Entry(form_frame, width=25)
-        self.pincode_entry.grid(
-            row=3, column=3, padx=10, pady=7
-        )
-
-        # Connection Date
-        tk.Label(
-            form_frame,
-            text="Connection Date (YYYY-MM-DD)"
-        ).grid(
-            row=4, column=0, padx=10, pady=7, sticky="w"
-        )
-
-        self.connection_date_entry = tk.Entry(
-            form_frame,
-            width=25
-        )
-
-        self.connection_date_entry.grid(
-            row=4, column=1, padx=10, pady=7
-        )
-
-        self.connection_date_entry.insert(
-            0,
-            date.today().strftime("%Y-%m-%d")
-        )
-
-        # Connection Type
-        tk.Label(form_frame, text="Connection Type").grid(
-            row=4, column=2, padx=10, pady=7, sticky="w"
-        )
-
-        self.connection_type_combo = ttk.Combobox(
-            form_frame,
-            values=[
-                "DOMESTIC",
-                "COMMERCIAL",
-                "INDUSTRIAL"
-            ],
-            state="readonly",
-            width=22
-        )
-
-        self.connection_type_combo.grid(
-            row=4, column=3, padx=10, pady=7
-        )
-
-        self.connection_type_combo.set("DOMESTIC")
-
-        # =========================================
-        # BUTTONS
-        # =========================================
-
-        button_frame = tk.Frame(self.window)
-        button_frame.pack(pady=15)
-
-        tk.Button(
-            button_frame,
-            text="Add Customer",
-            width=16,
-            command=self.add_customer
-        ).grid(row=0, column=0, padx=5)
-
-        tk.Button(
-            button_frame,
-            text="Update Customer",
-            width=16,
-            command=self.update_customer
-        ).grid(row=0, column=1, padx=5)
-
-        tk.Button(
-            button_frame,
-            text="Delete Customer",
-            width=16,
-            command=self.delete_customer
-        ).grid(row=0, column=2, padx=5)
-
-        tk.Button(
-            button_frame,
-            text="Clear",
-            width=16,
-            command=self.clear_form
-        ).grid(row=0, column=3, padx=5)
-
-        tk.Button(
-            button_frame,
-            text="Refresh",
-            width=16,
-            command=self.load_customers
-        ).grid(row=0, column=4, padx=5)
-
-        # =========================================
-        # TABLE
-        # =========================================
-
-        table_frame = tk.Frame(self.window)
-
-        table_frame.pack(
-            fill=tk.BOTH,
-            expand=True,
-            padx=20,
-            pady=10
-        )
-
-        columns = (
-            "customer_id",
-            "first_name",
-            "last_name",
-            "email",
-            "phone",
-            "city",
-            "state",
-            "connection_type"
-        )
-
-        self.customer_table = ttk.Treeview(
-            table_frame,
-            columns=columns,
-            show="headings"
-        )
-
-        for column in columns:
-
-            self.customer_table.heading(
-                column,
-                text=column.replace("_", " ").title()
-            )
-
-            self.customer_table.column(
-                column,
-                width=130,
-                anchor="center"
-            )
-
-        scrollbar = ttk.Scrollbar(
-            table_frame,
-            orient=tk.VERTICAL,
-            command=self.customer_table.yview
-        )
-
-        self.customer_table.configure(
-            yscrollcommand=scrollbar.set
-        )
-
-        self.customer_table.pack(
-            side=tk.LEFT,
-            fill=tk.BOTH,
-            expand=True
-        )
-
-        scrollbar.pack(
-            side=tk.RIGHT,
-            fill=tk.Y
-        )
-
-        self.customer_table.bind(
-            "<ButtonRelease-1>",
-            self.select_customer
-        )
+        self._build_form(body)
+        self._build_table(body)
 
         self.load_customers()
 
+    # =================================================================
+    # FORM PANEL
+    # =================================================================
 
-    # =========================================
-    # LOAD CUSTOMERS
-    # =========================================
+    def _build_form(self, parent):
+        card = Card(parent, radius=10, padding=18)
+        card.grid(row=0, column=0, sticky="ns", padx=(0, 16))
+
+        tk.Label(
+            card.body, text="CUSTOMER DETAILS", font=theme.FONTS["h3"],
+            bg=COLORS["surface"], fg=COLORS["text"]
+        ).pack(anchor="w")
+        tk.Label(
+            card.body, text="Select a row to edit, or fill this in to add a new customer.",
+            font=theme.FONTS["small"], bg=COLORS["surface"], fg=COLORS["text_muted"], wraplength=300, justify="left"
+        ).pack(anchor="w", pady=(2, 14))
+
+        grid = tk.Frame(card.body, bg=COLORS["surface"])
+        grid.pack(fill="x")
+        grid.grid_columnconfigure(0, weight=1)
+        grid.grid_columnconfigure(1, weight=1)
+
+        self.first_name_entry = components.form_field(
+            grid, 0, 0, "First Name", lambda p: theme.styled_entry(p, width=18)
+        )
+        self.last_name_entry = components.form_field(
+            grid, 0, 1, "Last Name", lambda p: theme.styled_entry(p, width=18), padx=(0, 0)
+        )
+        self.email_entry = components.form_field(
+            grid, 1, 0, "Email", lambda p: theme.styled_entry(p, width=18)
+        )
+        self.phone_entry = components.form_field(
+            grid, 1, 1, "Phone", lambda p: theme.styled_entry(p, width=18), padx=(0, 0)
+        )
+        self.address_entry = components.form_field(
+            grid, 2, 0, "Address", lambda p: theme.styled_entry(p, width=18)
+        )
+        self.city_entry = components.form_field(
+            grid, 2, 1, "City", lambda p: theme.styled_entry(p, width=18), padx=(0, 0)
+        )
+        self.state_entry = components.form_field(
+            grid, 3, 0, "State", lambda p: theme.styled_entry(p, width=18)
+        )
+        self.pincode_entry = components.form_field(
+            grid, 3, 1, "Pincode", lambda p: theme.styled_entry(p, width=18), padx=(0, 0)
+        )
+        self.connection_date_entry = components.form_field(
+            grid, 4, 0, "Connection Date (YYYY-MM-DD)", lambda p: theme.styled_entry(p, width=18)
+        )
+        self.connection_date_entry.insert(0, date.today().strftime("%Y-%m-%d"))
+
+        self.connection_type_combo = components.form_field(
+            grid, 4, 1, "Connection Type",
+            lambda p: theme.styled_combobox(p, CONNECTION_TYPES, width=15), padx=(0, 0)
+        )
+        self.connection_type_combo.set("DOMESTIC")
+
+        button_row1 = tk.Frame(card.body, bg=COLORS["surface"])
+        button_row1.pack(fill="x", pady=(10, 6))
+        ttk.Button(
+            button_row1, text="Add Customer", style="Primary.TButton", command=self.add_customer
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ttk.Button(
+            button_row1, text="Update", style="Secondary.TButton", command=self.update_customer
+        ).pack(side="left", fill="x", expand=True)
+
+        button_row2 = tk.Frame(card.body, bg=COLORS["surface"])
+        button_row2.pack(fill="x")
+        ttk.Button(
+            button_row2, text="Delete", style="Destructive.TButton", command=self.delete_customer
+        ).pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ttk.Button(
+            button_row2, text="Clear Form", style="GhostOnSurface.TButton", command=self.clear_form
+        ).pack(side="left", fill="x", expand=True)
+
+    # =================================================================
+    # TABLE PANEL
+    # =================================================================
+
+    def _build_table(self, parent):
+        card = Card(parent, radius=10, padding=18)
+        card.grid(row=0, column=1, sticky="nsew")
+        card.body.grid_columnconfigure(0, weight=1)
+        card.body.grid_rowconfigure(2, weight=1)
+
+        header_row = tk.Frame(card.body, bg=COLORS["surface"])
+        header_row.grid(row=0, column=0, sticky="ew")
+        header_row.grid_columnconfigure(0, weight=1)
+
+        self.count_label = tk.Label(
+            header_row, text="", font=theme.FONTS["h3"], bg=COLORS["surface"], fg=COLORS["text"]
+        )
+        self.count_label.grid(row=0, column=0, sticky="w")
+
+        self.search_bar = SearchBar(header_row, placeholder="Search by name, email, phone or city", on_change=self._on_search)
+        self.search_bar.grid(row=0, column=1, sticky="e")
+
+        tk.Frame(card.body, bg=COLORS["surface"], height=12).grid(row=1, column=0)
+
+        table_wrap = tk.Frame(card.body, bg=COLORS["surface"])
+        table_wrap.grid(row=2, column=0, sticky="nsew")
+        table_wrap.grid_columnconfigure(0, weight=1)
+        table_wrap.grid_rowconfigure(0, weight=1)
+
+        self.customer_table = ttk.Treeview(table_wrap, columns=TABLE_COLUMNS, show="headings")
+        for col in TABLE_COLUMNS:
+            self.customer_table.heading(col, text=TABLE_HEADINGS[col])
+            self.customer_table.column(col, width=120, anchor="center")
+        self.customer_table.column("email", width=170, anchor="w")
+        self.customer_table.column("first_name", anchor="w")
+        self.customer_table.column("last_name", anchor="w")
+
+        components.configure_row_tags(self.customer_table)
+
+        scrollbar = ttk.Scrollbar(table_wrap, orient=tk.VERTICAL, command=self.customer_table.yview)
+        self.customer_table.configure(yscrollcommand=scrollbar.set)
+
+        self.customer_table.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        self.customer_table.bind("<ButtonRelease-1>", self.select_customer)
+
+        self.empty_state_holder = tk.Frame(table_wrap, bg=COLORS["surface"])
+        self.empty_state_holder.grid(row=0, column=0, sticky="nsew")
+        self.empty_state_holder.grid_remove()
+
+    # =================================================================
+    # DATA LOADING / FILTERING
+    # =================================================================
 
     def load_customers(self):
+        self.all_customers = get_all_customers() or []
+        self._render_rows(self.all_customers)
 
+    def _on_search(self, query):
+        if not query:
+            self._render_rows(self.all_customers)
+            return
+
+        query = query.lower()
+        filtered = [
+            c for c in self.all_customers
+            if query in str(c.get("first_name", "")).lower()
+            or query in str(c.get("last_name", "")).lower()
+            or query in str(c.get("email", "")).lower()
+            or query in str(c.get("phone", "")).lower()
+            or query in str(c.get("city", "")).lower()
+        ]
+        self._render_rows(filtered)
+
+    def _render_rows(self, customers):
         for item in self.customer_table.get_children():
             self.customer_table.delete(item)
 
-        customers = get_all_customers()
+        self.count_label.configure(text=f"{len(customers)} Customer{'s' if len(customers) != 1 else ''}")
 
-        for customer in customers:
+        if not customers:
+            self.customer_table.grid_remove()
+            self.empty_state_holder.grid()
+            for w in self.empty_state_holder.winfo_children():
+                w.destroy()
+            EmptyState(
+                self.empty_state_holder, "No customers found",
+                "Try a different search, or add a new customer using the form."
+            ).pack(fill="both", expand=True)
+            return
 
+        self.empty_state_holder.grid_remove()
+        self.customer_table.grid()
+
+        for i, customer in enumerate(customers):
             self.customer_table.insert(
-                "",
-                tk.END,
+                "", tk.END,
                 values=(
                     customer.get("customer_id", ""),
                     customer.get("first_name", ""),
@@ -300,118 +265,51 @@ class CustomerManagement:
                     customer.get("phone", ""),
                     customer.get("city", ""),
                     customer.get("state", ""),
-                    customer.get("connection_type", "")
-                )
+                    customer.get("connection_type", ""),
+                ),
+                tags=components.row_tags(i),
             )
 
+    # =================================================================
+    # SELECT / VALIDATE
+    # =================================================================
 
-    # =========================================
-    # SELECT CUSTOMER
-    # =========================================
-
-    def select_customer(self, event):
-
+    def select_customer(self, _event):
         selected = self.customer_table.focus()
-
         if not selected:
             return
 
-        values = self.customer_table.item(
-            selected,
-            "values"
-        )
-
+        values = self.customer_table.item(selected, "values")
         if not values:
             return
 
         customer_id = values[0]
-
-        customers = get_all_customers()
-
-        customer = None
-
-        for item in customers:
-
-            if str(item["customer_id"]) == str(customer_id):
-                customer = item
-                break
-
+        customer = next(
+            (c for c in self.all_customers if str(c["customer_id"]) == str(customer_id)), None
+        )
         if customer is None:
             return
 
         self.selected_customer_id = customer["customer_id"]
+        self.banner.hide()
 
-        self.first_name_entry.delete(0, tk.END)
-        self.first_name_entry.insert(
-            0,
-            customer.get("first_name", "")
-        )
+        self._set_entry(self.first_name_entry, customer.get("first_name", ""))
+        self._set_entry(self.last_name_entry, customer.get("last_name", ""))
+        self._set_entry(self.email_entry, customer.get("email", ""))
+        self._set_entry(self.phone_entry, customer.get("phone", ""))
+        self._set_entry(self.address_entry, customer.get("address", ""))
+        self._set_entry(self.city_entry, customer.get("city", ""))
+        self._set_entry(self.state_entry, customer.get("state", ""))
+        self._set_entry(self.pincode_entry, customer.get("pincode", ""))
+        self._set_entry(self.connection_date_entry, str(customer.get("connection_date", "")))
+        self.connection_type_combo.set(customer.get("connection_type", "DOMESTIC"))
 
-        self.last_name_entry.delete(0, tk.END)
-        self.last_name_entry.insert(
-            0,
-            customer.get("last_name", "")
-        )
-
-        self.email_entry.delete(0, tk.END)
-        self.email_entry.insert(
-            0,
-            customer.get("email", "")
-        )
-
-        self.phone_entry.delete(0, tk.END)
-        self.phone_entry.insert(
-            0,
-            customer.get("phone", "")
-        )
-
-        self.address_entry.delete(0, tk.END)
-        self.address_entry.insert(
-            0,
-            customer.get("address", "")
-        )
-
-        self.city_entry.delete(0, tk.END)
-        self.city_entry.insert(
-            0,
-            customer.get("city", "")
-        )
-
-        self.state_entry.delete(0, tk.END)
-        self.state_entry.insert(
-            0,
-            customer.get("state", "")
-        )
-
-        self.pincode_entry.delete(0, tk.END)
-        self.pincode_entry.insert(
-            0,
-            customer.get("pincode", "")
-        )
-
-        self.connection_date_entry.delete(0, tk.END)
-
-        connection_date = customer.get(
-            "connection_date",
-            ""
-        )
-
-        self.connection_date_entry.insert(
-            0,
-            str(connection_date)
-        )
-
-        self.connection_type_combo.set(
-            customer.get("connection_type", "DOMESTIC")
-        )
-
-
-    # =========================================
-    # VALIDATE FORM
-    # =========================================
+    @staticmethod
+    def _set_entry(entry, value):
+        entry.delete(0, tk.END)
+        entry.insert(0, value)
 
     def validate_form(self):
-
         fields = [
             self.first_name_entry.get().strip(),
             self.last_name_entry.get().strip(),
@@ -420,53 +318,32 @@ class CustomerManagement:
             self.address_entry.get().strip(),
             self.city_entry.get().strip(),
             self.state_entry.get().strip(),
-            self.connection_date_entry.get().strip()
+            self.connection_date_entry.get().strip(),
         ]
 
         if not all(fields):
-
-            messagebox.showwarning(
-                "Missing Information",
-                "Please fill in all required fields."
-            )
-
+            self.banner.show("Please fill in all required fields.", kind="warning")
             return False
 
         email = self.email_entry.get().strip()
-
         if "@" not in email or "." not in email:
-
-            messagebox.showwarning(
-                "Invalid Email",
-                "Please enter a valid email."
-            )
-
+            self.banner.show("Please enter a valid email address.", kind="warning")
             return False
 
         connection_date = self.connection_date_entry.get().strip()
-
         try:
-
             date.fromisoformat(connection_date)
-
         except ValueError:
-
-            messagebox.showwarning(
-                "Invalid Date",
-                "Use YYYY-MM-DD format."
-            )
-
+            self.banner.show("Connection date must be in YYYY-MM-DD format.", kind="warning")
             return False
 
         return True
 
-
-    # =========================================
-    # ADD CUSTOMER
-    # =========================================
+    # =================================================================
+    # ADD / UPDATE / DELETE
+    # =================================================================
 
     def add_customer(self):
-
         if not self.validate_form():
             return
 
@@ -480,40 +357,19 @@ class CustomerManagement:
             self.state_entry.get().strip(),
             self.pincode_entry.get().strip() or None,
             self.connection_date_entry.get().strip(),
-            self.connection_type_combo.get().strip()
+            self.connection_type_combo.get().strip(),
         )
 
         if success:
-
-            messagebox.showinfo(
-                "Success",
-                message
-            )
-
+            self.banner.show(message, kind="success")
             self.clear_form()
             self.load_customers()
-
         else:
-
-            messagebox.showerror(
-                "Error",
-                message
-            )
-
-
-    # =========================================
-    # UPDATE CUSTOMER
-    # =========================================
+            self.banner.show(message, kind="danger")
 
     def update_customer(self):
-
         if self.selected_customer_id is None:
-
-            messagebox.showwarning(
-                "No Selection",
-                "Please select a customer first."
-            )
-
+            self.banner.show("Select a customer from the table first.", kind="warning")
             return
 
         if not self.validate_form():
@@ -530,98 +386,46 @@ class CustomerManagement:
             self.state_entry.get().strip(),
             self.pincode_entry.get().strip() or None,
             self.connection_date_entry.get().strip(),
-            self.connection_type_combo.get().strip()
+            self.connection_type_combo.get().strip(),
         )
 
         if success:
-
-            messagebox.showinfo(
-                "Success",
-                message
-            )
-
+            self.banner.show(message, kind="success")
             self.clear_form()
             self.load_customers()
-
         else:
-
-            messagebox.showerror(
-                "Error",
-                message
-            )
-
-
-    # =========================================
-    # DELETE CUSTOMER
-    # =========================================
+            self.banner.show(message, kind="danger")
 
     def delete_customer(self):
-
         if self.selected_customer_id is None:
-
-            messagebox.showwarning(
-                "No Selection",
-                "Please select a customer first."
-            )
-
+            self.banner.show("Select a customer from the table first.", kind="warning")
             return
 
         confirm = messagebox.askyesno(
-            "Confirm Delete",
-            "Are you sure you want to delete this customer?"
+            "Confirm Delete", "Are you sure you want to delete this customer? This cannot be undone."
         )
-
         if not confirm:
             return
 
-        success, message = delete_customer(
-            self.selected_customer_id
-        )
+        success, message = delete_customer(self.selected_customer_id)
 
         if success:
-
-            messagebox.showinfo(
-                "Success",
-                message
-            )
-
+            self.banner.show(message, kind="success")
             self.clear_form()
             self.load_customers()
-
         else:
-
-            messagebox.showerror(
-                "Error",
-                message
-            )
-
-
-    # =========================================
-    # CLEAR FORM
-    # =========================================
+            self.banner.show(message, kind="danger")
 
     def clear_form(self):
-
         self.selected_customer_id = None
+        self.banner.hide()
 
-        entries = [
-            self.first_name_entry,
-            self.last_name_entry,
-            self.email_entry,
-            self.phone_entry,
-            self.address_entry,
-            self.city_entry,
-            self.state_entry,
-            self.pincode_entry,
-            self.connection_date_entry
-        ]
-
-        for entry in entries:
+        for entry in (
+            self.first_name_entry, self.last_name_entry, self.email_entry, self.phone_entry,
+            self.address_entry, self.city_entry, self.state_entry, self.pincode_entry,
+            self.connection_date_entry,
+        ):
             entry.delete(0, tk.END)
 
-        self.connection_date_entry.insert(
-            0,
-            date.today().strftime("%Y-%m-%d")
-        )
-
+        self.connection_date_entry.insert(0, date.today().strftime("%Y-%m-%d"))
         self.connection_type_combo.set("DOMESTIC")

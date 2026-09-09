@@ -1,9 +1,49 @@
+"""
+Application entry point: login screen + role-based routing into the
+Admin shell or the Customer portal.
+
+Still uses the same authentication call with the same arguments:
+    services.auth.login(username, password)
+"""
+
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import ttk
 
 from services.auth import login
+from ui import theme
+from ui.theme import COLORS
+from ui.components import Card
 from ui.admin_dashboard import AdminDashboard
 from ui.customer_dashboard import CustomerDashboard
+
+
+# -----------------------------------------------------------------------
+# Main window (login screen)
+# -----------------------------------------------------------------------
+
+root = tk.Tk()
+root.title("Electricity Billing Management System")
+root.geometry("480x560")
+root.resizable(False, False)
+
+theme.apply_theme(root)
+root.configure(bg=COLORS["bg"])
+
+
+def show_login_error(message):
+    error_label.configure(text=message)
+
+
+def clear_login_error():
+    error_label.configure(text="")
+
+
+def return_to_login():
+    """Called when a dashboard logs the user out."""
+    username_entry.delete(0, tk.END)
+    password_entry.delete(0, tk.END)
+    clear_login_error()
+    root.deiconify()
 
 
 def attempt_login():
@@ -11,123 +51,96 @@ def attempt_login():
     password = password_entry.get()
 
     if not username or not password:
-        messagebox.showwarning(
-            "Missing Information",
-            "Please enter both username and password."
-        )
+        show_login_error("Please enter both username and password.")
         return
 
     user = login(username, password)
 
-    if user:
-        # Clear login fields
-        username_entry.delete(0, tk.END)
-        password_entry.delete(0, tk.END)
+    if not user:
+        show_login_error("Invalid username or password.")
+        return
 
-        # Open dashboard according to user's role
-        if user["role"] == "ADMIN":
-            AdminDashboard()
+    clear_login_error()
+    username_entry.delete(0, tk.END)
+    password_entry.delete(0, tk.END)
 
-        elif user["role"] == "CUSTOMER":
-            CustomerDashboard(user["username"])
+    role = user["role"]
 
-        else:
-            messagebox.showerror(
-                "Error",
-                "Unknown user role."
-            )
+    # Hide the login window while a dashboard is open; it reappears via
+    # return_to_login() when the user logs out.
+    root.withdraw()
 
+    if role == "ADMIN":
+        AdminDashboard(on_logout=return_to_login)
+    elif role == "CUSTOMER":
+        CustomerDashboard(user["username"], on_logout=return_to_login)
     else:
-        messagebox.showerror(
-            "Login Failed",
-            "Invalid username or password."
-        )
+        root.deiconify()
+        show_login_error("Unknown user role.")
 
 
-# -----------------------------------------
-# Main Window
-# -----------------------------------------
+# -----------------------------------------------------------------------
+# Layout
+# -----------------------------------------------------------------------
 
-root = tk.Tk()
+wrapper = tk.Frame(root, bg=COLORS["bg"])
+wrapper.pack(fill="both", expand=True)
 
-root.title("Electricity Bill Management System")
-root.geometry("500x350")
-root.resizable(False, False)
+card_holder = tk.Frame(wrapper, bg=COLORS["bg"])
+card_holder.place(relx=0.5, rely=0.5, anchor="center")
 
+# ---- Brand header --------------------------------------------------
+tk.Label(
+    card_holder, text="VOLTGRID", font=theme.FONTS["h1"], bg=COLORS["bg"], fg=COLORS["text"]
+).pack(pady=(0, 2))
+tk.Label(
+    card_holder, text="ELECTRIC UTILITY  \u00b7  BILLING PORTAL", font=theme.FONTS["small_bold"],
+    bg=COLORS["bg"], fg=COLORS["accent_dark"]
+).pack()
+tk.Frame(card_holder, bg=COLORS["accent"], height=2, width=64).pack(pady=(10, 24))
 
-# -----------------------------------------
-# Title
-# -----------------------------------------
+# ---- Login card ------------------------------------------------------
+login_card = Card(card_holder, radius=12, padding=28, outer_bg=COLORS["bg"])
+login_card.pack()
 
-title_label = tk.Label(
-    root,
-    text="Electricity Bill Management System",
-    font=("Arial", 18, "bold")
+tk.Label(
+    login_card.body, text="Sign In", font=theme.FONTS["h2"], bg=COLORS["surface"], fg=COLORS["text"]
+).pack(anchor="w")
+tk.Label(
+    login_card.body, text="Enter your credentials to continue", font=theme.FONTS["small"],
+    bg=COLORS["surface"], fg=COLORS["text_muted"]
+).pack(anchor="w", pady=(2, 18))
+
+theme.field_label(login_card.body, "Username").pack(anchor="w", pady=(0, 5))
+username_entry = theme.styled_entry(login_card.body, width=32)
+username_entry.pack(fill="x", pady=(0, 14), ipady=4)
+
+theme.field_label(login_card.body, "Password").pack(anchor="w", pady=(0, 5))
+password_entry = theme.styled_entry(login_card.body, width=32, show="*")
+password_entry.pack(fill="x", pady=(0, 6), ipady=4)
+
+error_label = tk.Label(
+    login_card.body, text="", font=theme.FONTS["small_bold"], bg=COLORS["surface"],
+    fg=COLORS["danger"], anchor="w", wraplength=300, justify="left"
 )
+error_label.pack(anchor="w", pady=(2, 12))
 
-title_label.pack(pady=30)
+ttk.Button(
+    login_card.body, text="Log In", style="Primary.TButton", command=attempt_login
+).pack(fill="x", ipady=2)
 
+password_entry.bind("<Return>", lambda _event: attempt_login())
+username_entry.bind("<Return>", lambda _event: password_entry.focus_set())
 
-# -----------------------------------------
-# Username
-# -----------------------------------------
-
-username_label = tk.Label(
-    root,
-    text="Username",
-    font=("Arial", 11)
-)
-
-username_label.pack()
-
-username_entry = tk.Entry(
-    root,
-    width=30,
-    font=("Arial", 11)
-)
-
-username_entry.pack(pady=8)
+tk.Label(
+    card_holder, text="Admin and customer accounts both sign in here.", font=theme.FONTS["small"],
+    bg=COLORS["bg"], fg=COLORS["text_faint"]
+).pack(pady=(18, 0))
 
 
-# -----------------------------------------
-# Password
-# -----------------------------------------
+# -----------------------------------------------------------------------
+# Start application
+# -----------------------------------------------------------------------
 
-password_label = tk.Label(
-    root,
-    text="Password",
-    font=("Arial", 11)
-)
-
-password_label.pack()
-
-password_entry = tk.Entry(
-    root,
-    width=30,
-    font=("Arial", 11),
-    show="*"
-)
-
-password_entry.pack(pady=8)
-
-
-# -----------------------------------------
-# Login Button
-# -----------------------------------------
-
-login_button = tk.Button(
-    root,
-    text="Login",
-    width=15,
-    font=("Arial", 11, "bold"),
-    command=attempt_login
-)
-
-login_button.pack(pady=20)
-
-
-# -----------------------------------------
-# Start Application
-# -----------------------------------------
-
-root.mainloop()
+if __name__ == "__main__":
+    root.mainloop()
