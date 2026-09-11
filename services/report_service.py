@@ -1,7 +1,10 @@
 from database.connections import create_connection
+from services.overdue_service import mark_overdue_bills
 
 
 def get_dashboard_statistics():
+
+    mark_overdue_bills()
 
     connection = create_connection()
 
@@ -43,7 +46,7 @@ def get_dashboard_statistics():
         cursor.execute("""
             SELECT COUNT(*) AS total
             FROM bills
-            WHERE status = 'UNPAID'
+            WHERE status IN ('UNPAID', 'OVERDUE')
         """)
         unpaid_bills = cursor.fetchone()["total"]
 

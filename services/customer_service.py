@@ -1,4 +1,12 @@
 from database.connections import create_connection
+from services.security import hash_password
+import secrets
+import string
+
+
+def _generate_temp_password(length=10):
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 # =========================================
@@ -113,9 +121,27 @@ def add_customer(
 
         cursor.execute(query, values)
 
+        new_customer_id = cursor.lastrowid
+
+        # Auto-create the matching login account for this customer, so an
+        # admin never has to manually touch the `users` table just to let
+        # a customer log in. The email (already unique-checked above) is
+        # reused as the login username, and a random temporary password is
+        # generated and returned so it can be handed to the customer once.
+        temp_password = _generate_temp_password()
+
+        cursor.execute("""
+            INSERT INTO users (username, password_hash, role, customer_id)
+            VALUES (%s, %s, 'CUSTOMER', %s)
+        """, (email, hash_password(temp_password), new_customer_id))
+
         connection.commit()
 
-        return True, "Customer added successfully."
+        return True, (
+            f"Customer added successfully. Login created -- "
+            f"Username: {email}  Temporary Password: {temp_password} "
+            f"(share this with the customer; it won't be shown again)."
+        )
 
     except Exception as e:
 

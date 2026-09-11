@@ -27,6 +27,8 @@ from services.bill_service import (
     generate_bill,
     calculate_energy_charge,
 )
+from services.tariff_service import get_all_tariffs
+from datetime import date as _date
 
 
 TABLE_COLUMNS = (
@@ -406,7 +408,23 @@ class BillManagementPage(tk.Frame):
             self.banner.show("Fill in billing month, previous reading and current reading.", kind="warning")
             return
 
+        try:
+            _date.fromisoformat(billing_month)
+        except ValueError:
+            self.banner.show("Billing month must be a valid date in YYYY-MM-DD format.", kind="warning")
+            return
+
         data = self.customer_data
+
+        connection_type = data.get("connection_type", "DOMESTIC")
+        tariffs_for_type = [t for t in (get_all_tariffs() or []) if t.get("connection_type") == connection_type]
+        if not tariffs_for_type:
+            self.banner.show(
+                f"No tariff slabs are configured for {connection_type} connections. "
+                f"Add one under Tariff Management before generating this bill.",
+                kind="danger",
+            )
+            return
 
         try:
             success, result = generate_bill(

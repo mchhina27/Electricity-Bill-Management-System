@@ -1,11 +1,6 @@
 """
-Admin application shell: persistent sidebar + top bar + a scrollable
-content area that swaps between pages.
-
-None of the underlying service calls changed -- each page class below still
-calls the exact same functions from services/*.py that the original
-screens did (plus the new grievance/employee services for the two new
-sections).
+Employee application shell -- same visual shell as the Admin dashboard,
+but with a restricted set of sections (no Tariffs, no Employee accounts).
 """
 
 import tkinter as tk
@@ -18,12 +13,10 @@ from ui.components import Sidebar, TopBar, ScrollableFrame
 from ui.dashboard_page import DashboardPage
 from ui.customer_management import CustomerManagementPage
 from ui.meter_management import MeterManagementPage
-from ui.tariff_management import TariffManagementPage
 from ui.bill_management import BillManagementPage
 from ui.payment_management import PaymentManagementPage
 from ui.reports import ReportsPage
 from ui.grievance_management import GrievanceManagementPage
-from ui.employee_management import EmployeeManagementPage
 
 
 NAV_SECTIONS = [
@@ -33,8 +26,6 @@ NAV_SECTIONS = [
     ("MANAGEMENT", [
         ("customers", "Customers"),
         ("meters", "Meters"),
-        ("tariffs", "Tariffs"),
-        ("employees", "Employees"),
     ]),
     ("BILLING", [
         ("bills", "Bills"),
@@ -46,13 +37,10 @@ NAV_SECTIONS = [
     ]),
 ]
 
-# key -> (PageClass, title, subtitle)
 PAGE_REGISTRY = {
     "dashboard": (DashboardPage, "Dashboard", "Overview of billing activity and system status"),
     "customers": (CustomerManagementPage, "Customer Management", "Manage customer accounts and connection details"),
     "meters": (MeterManagementPage, "Meter Management", "Track meters, readings and device status"),
-    "tariffs": (TariffManagementPage, "Tariff Management", "Configure slab-based unit rates by connection type"),
-    "employees": (EmployeeManagementPage, "Employee Accounts", "Create and remove staff login accounts"),
     "bills": (BillManagementPage, "Bill Management", "Generate and review customer electricity bills"),
     "payments": (PaymentManagementPage, "Payment Management", "Record and track incoming bill payments"),
     "grievances": (GrievanceManagementPage, "Grievances", "Review and resolve customer-submitted grievances"),
@@ -60,13 +48,14 @@ PAGE_REGISTRY = {
 }
 
 
-class AdminDashboard:
+class EmployeeDashboard:
 
-    def __init__(self, on_logout=None):
+    def __init__(self, employee_name=None, on_logout=None):
         self.on_logout = on_logout
+        self.employee_name = employee_name or "Employee"
 
         self.window = tk.Toplevel()
-        self.window.title("Electricity Billing Management System — Admin")
+        self.window.title("Electricity Billing Management System — Employee")
         self.window.geometry("1360x830")
         self.window.minsize(1080, 640)
 
@@ -78,7 +67,6 @@ class AdminDashboard:
         self.current_page_key = None
         self.current_page_widget = None
 
-        # ---- Sidebar -------------------------------------------------
         self.sidebar = Sidebar(
             self.window,
             sections=NAV_SECTIONS,
@@ -88,14 +76,13 @@ class AdminDashboard:
         )
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
-        # ---- Right side (top bar + scrollable content) ----------------
         right = tk.Frame(self.window, bg=COLORS["bg"])
         right.grid(row=0, column=1, sticky="nsew")
         right.grid_columnconfigure(0, weight=1)
         right.grid_rowconfigure(1, weight=1)
 
         self.topbar = TopBar(
-            right, user_label="Administrator", role_label="ADMIN ACCESS", on_logout=self.logout
+            right, user_label=self.employee_name, role_label="EMPLOYEE ACCESS", on_logout=self.logout
         )
         self.topbar.grid(row=0, column=0, sticky="ew")
 
@@ -106,10 +93,6 @@ class AdminDashboard:
         self.window.protocol("WM_DELETE_WINDOW", self.logout)
 
         self.show_page("dashboard")
-
-    # -----------------------------------------------------------------
-    # Navigation
-    # -----------------------------------------------------------------
 
     def show_page(self, key):
         if key not in PAGE_REGISTRY:
@@ -124,12 +107,9 @@ class AdminDashboard:
         self.sidebar.set_active(key)
         self.topbar.set_title(title, subtitle)
 
-        # Each page fetches fresh data from the database on creation,
-        # so navigating to a section always shows up-to-date records.
         self.current_page_widget = page_class(self.content)
         self.current_page_widget.grid(row=0, column=0, sticky="nsew")
 
-        # Scroll back to the top of the new page.
         self.content_scroll.canvas.yview_moveto(0)
 
     def logout(self):

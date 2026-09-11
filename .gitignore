@@ -1,0 +1,12 @@
+# Local database credentials -- never commit this file
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

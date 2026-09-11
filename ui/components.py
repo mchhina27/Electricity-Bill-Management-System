@@ -569,3 +569,62 @@ def form_field(parent, row, column, label_text, factory, colspan=1, padx=(0, 18)
     widget = factory(cell)
     widget.pack(anchor="w", fill="x")
     return widget
+
+
+# =============================================================================
+# ScrollableFrame -- lets an entire page/content area scroll vertically
+# when the window is too small to show everything at once.
+# =============================================================================
+
+class ScrollableFrame(tk.Frame):
+    """
+    Wrap a content area in this, then build your page(s) inside
+    `scrollable.inner` instead of directly inside the original parent.
+    The vertical scrollbar (and mouse wheel) only appear/act when content
+    is actually taller than the visible area.
+    """
+
+    def __init__(self, parent, bg=None):
+        bg = bg or COLORS["bg"]
+        super().__init__(parent, bg=bg)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        self.canvas = tk.Canvas(self, bg=bg, highlightthickness=0, bd=0)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.vbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.vbar.grid(row=0, column=1, sticky="ns")
+        self.canvas.configure(yscrollcommand=self.vbar.set)
+
+        self.inner = tk.Frame(self.canvas, bg=bg)
+        self.inner.grid_columnconfigure(0, weight=1)
+        self._window = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
+
+        self.inner.bind("<Configure>", self._on_inner_configure)
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.canvas.bind("<Enter>", self._bind_mousewheel)
+        self.canvas.bind("<Leave>", self._unbind_mousewheel)
+
+    def _on_inner_configure(self, _event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self.canvas.itemconfig(self._window, width=event.width)
+
+    def _bind_mousewheel(self, _event):
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind_all("<Button-4>", self._on_mousewheel_linux)
+        self.canvas.bind_all("<Button-5>", self._on_mousewheel_linux)
+
+    def _unbind_mousewheel(self, _event):
+        self.canvas.unbind_all("<MouseWheel>")
+        self.canvas.unbind_all("<Button-4>")
+        self.canvas.unbind_all("<Button-5>")
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _on_mousewheel_linux(self, event):
+        direction = -1 if event.num == 4 else 1
+        self.canvas.yview_scroll(direction, "units")

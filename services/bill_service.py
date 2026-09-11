@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 from database.connections import create_connection
+from services.overdue_service import mark_overdue_bills
 
 
 def calculate_energy_charge(connection_type, units_consumed):
@@ -252,6 +253,8 @@ def generate_bill(
 
 
 def get_all_bills():
+    mark_overdue_bills()
+
     connection = create_connection()
 
     if connection is None:
@@ -278,6 +281,8 @@ def get_all_bills():
 
 
 def get_customer_bills(customer_id):
+    mark_overdue_bills()
+
     connection = create_connection()
 
     if connection is None:

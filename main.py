@@ -14,6 +14,7 @@ from ui import theme
 from ui.theme import COLORS
 from ui.components import Card
 from ui.admin_dashboard import AdminDashboard
+from ui.employee_dashboard import EmployeeDashboard
 from ui.customer_dashboard import CustomerDashboard
 
 
@@ -72,8 +73,14 @@ def attempt_login():
 
     if role == "ADMIN":
         AdminDashboard(on_logout=return_to_login)
+    elif role == "EMPLOYEE":
+        EmployeeDashboard(employee_name=user.get("employee_name"), on_logout=return_to_login)
     elif role == "CUSTOMER":
-        CustomerDashboard(user["username"], on_logout=return_to_login)
+        if not user.get("customer_id"):
+            root.deiconify()
+            show_login_error("This customer account isn't linked to a customer record. Contact an administrator.")
+            return
+        CustomerDashboard(user["customer_id"], on_logout=return_to_login)
     else:
         root.deiconify()
         show_login_error("Unknown user role.")

@@ -285,7 +285,7 @@ class TariffManagementPage(tk.Frame):
         if not self.validate_form():
             return
 
-        success = add_tariff(
+        success, message = add_tariff(
             self.connection_type_combo.get(),
             self.min_units_entry.get().strip(),
             self.max_units_entry.get().strip(),
@@ -293,11 +293,11 @@ class TariffManagementPage(tk.Frame):
         )
 
         if success:
-            self.banner.show("Tariff added successfully.", kind="success")
+            self.banner.show(message, kind="success")
             self.clear_form()
             self.load_tariffs()
         else:
-            self.banner.show("Could not add tariff.", kind="danger")
+            self.banner.show(message, kind="danger")
 
     def update_tariff(self):
         if self.selected_tariff_id is None:
@@ -307,7 +307,7 @@ class TariffManagementPage(tk.Frame):
         if not self.validate_form():
             return
 
-        success = update_tariff(
+        success, message = update_tariff(
             self.selected_tariff_id,
             self.connection_type_combo.get(),
             self.min_units_entry.get().strip(),
@@ -316,11 +316,11 @@ class TariffManagementPage(tk.Frame):
         )
 
         if success:
-            self.banner.show("Tariff updated successfully.", kind="success")
+            self.banner.show(message, kind="success")
             self.clear_form()
             self.load_tariffs()
         else:
-            self.banner.show("Could not update tariff.", kind="danger")
+            self.banner.show(message, kind="danger")
 
     def delete_tariff(self):
         if self.selected_tariff_id is None:
